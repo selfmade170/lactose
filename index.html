@@ -1,0 +1,310 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Plus, 
+  Trash2, 
+  Info, 
+  ArrowRight, 
+  RotateCcw,
+  Smile,
+  Frown,
+  AlertCircle,
+  Milk,
+  Apple,
+  Beaker // Добавлен недостающий импорт
+} from 'lucide-react';
+
+// Список популярных продуктов с примерным содержанием лактозы
+const FOOD_DATABASE = [
+  { name: 'Молоко (стакан)', lactose: 12, icon: '🥛' },
+  { name: 'Мороженое (рожок)', lactose: 6, icon: '🍦' },
+  { name: 'Сыр (ломтик)', lactose: 0.5, icon: '🧀' },
+  { name: 'Йогурт', lactose: 5, icon: '🍶' },
+  { name: 'Сгущенка (ложка)', lactose: 3, icon: '🍯' },
+  { name: 'Пицца (с сыром)', lactose: 2, icon: '🍕' },
+  { name: 'Шай сүтпен (чай с молоком)', lactose: 4, icon: '☕' },
+  { name: 'Манная каша', lactose: 10, icon: '🥣' },
+];
+
+// SVG Формула брожения (React-совместимые свойства)
+const BiochemicalFormulaSVG = () => (
+  <svg viewBox="0 0 400 100" className="w-full h-auto max-w-md drop-shadow-md" xmlns="http://www.w3.org/2000/svg">
+    <text x="10" y="45" fill="currentColor" className="text-[16px] font-serif">
+      C<tspan dy="5" fontSize="12">12</tspan>
+      <tspan dy="-5">H</tspan><tspan dy="5" fontSize="12">22</tspan>
+      <tspan dy="-5">O</tspan><tspan dy="5" fontSize="12">11</tspan>
+      <tspan dy="-5" dx="5">+ H</tspan><tspan dy="5" fontSize="12">2</tspan>
+      <tspan dy="-5">O</tspan>
+    </text>
+    <path d="M165 40 L215 40" stroke="currentColor" strokeWidth="2" fill="none" markerEnd="url(#arrowhead)" />
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="currentColor" />
+      </marker>
+    </defs>
+    <text x="168" y="32" fill="#fbbf24" className="text-[10px] font-bold italic">Bacteria</text>
+    <text x="10" y="85" fill="#fbbf24" className="text-[14px] font-medium">
+      Орг. кислоты + H<tspan dy="5" fontSize="10">2</tspan>
+      <tspan dy="-5" dx="5">+ CO</tspan><tspan dy="5" fontSize="10">2</tspan>
+      <tspan dy="-5" dx="5">+ CH</tspan><tspan dy="5" fontSize="10">4</tspan>
+    </text>
+  </svg>
+);
+
+const App = () => {
+  // Состояние: Шаг (0 - опрос, 1 - калькулятор)
+  const [step, setStep] = useState(0);
+  // Состояние: Насколько плохо пользователю от молока
+  const [feeling, setFeeling] = useState(null); // 'fine', 'bloated', 'bad'
+  // Состояние: Съеденные продукты
+  const [myMeal, setMyMeal] = useState([]);
+  const [showCard, setShowCard] = useState(false);
+
+  // Уровень активности лактазы на основе "самочувствия"
+  const activityLevel = useMemo(() => {
+    if (feeling === 'fine') return 1.0;
+    if (feeling === 'bloated') return 0.4;
+    return 0.1;
+  }, [feeling]);
+
+  // Текстовое описание статуса
+  const statusLabel = useMemo(() => {
+    if (feeling === 'fine') return 'Норма';
+    if (feeling === 'bloated') return 'Гиполактазия';
+    return 'Алактазия';
+  }, [feeling]);
+
+  // Расчеты
+  const stats = useMemo(() => {
+    const totalLactose = myMeal.reduce((sum, item) => sum + item.lactose, 0);
+    const absorbed = totalLactose * activityLevel;
+    const unabsorbed = totalLactose - absorbed;
+    const stress = Math.min(100, (unabsorbed / 15) * 100);
+    return { totalLactose, unabsorbed, stress };
+  }, [myMeal, activityLevel]);
+
+  const addFood = (food) => {
+    setMyMeal([...myMeal, { ...food, id: Date.now() }]);
+  };
+
+  const removeFood = (id) => {
+    setMyMeal(myMeal.filter(item => item.id !== id));
+  };
+
+  // Компонент первого экрана (Опрос)
+  if (step === 0) {
+    return (
+      <div className="min-h-screen bg-blue-50 flex items-center justify-center p-6 font-sans">
+        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-lg w-full border-t-8 border-blue-400">
+          <h1 className="text-3xl font-black text-blue-900 text-center mb-2 italic">Lactose Scout 🥛</h1>
+          <p className="text-slate-500 text-center mb-8 font-medium">Школьный био-проект по биологии</p>
+          
+          <h2 className="text-xl font-bold text-slate-800 mb-6 text-center">Как ты обычно чувствуешь себя после молока?</h2>
+          
+          <div className="space-y-4">
+            <button 
+              onClick={() => {setFeeling('fine'); setStep(1);}}
+              className="w-full p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-200 hover:border-emerald-500 flex items-center gap-4 transition-all"
+            >
+              <Smile className="text-emerald-500" size={32} />
+              <div className="text-left">
+                <p className="font-bold text-emerald-900 leading-none">Отлично!</p>
+                <p className="text-xs text-emerald-600 mt-1">Обожаю молочку, никаких проблем.</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => {setFeeling('bloated'); setStep(1);}}
+              className="w-full p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 hover:border-amber-500 flex items-center gap-4 transition-all"
+            >
+              <AlertCircle className="text-amber-500" size={32} />
+              <div className="text-left">
+                <p className="font-bold text-amber-900 leading-none">Живот крутит...</p>
+                <p className="text-xs text-amber-600 mt-1">Иногда бывает вздутие или дискомфорт.</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => {setFeeling('bad'); setStep(1);}}
+              className="w-full p-4 rounded-2xl bg-red-50 border-2 border-red-200 hover:border-red-500 flex items-center gap-4 transition-all"
+            >
+              <Frown className="text-red-500" size={32} />
+              <div className="text-left">
+                <p className="font-bold text-red-900 leading-none">Ох, лучше не вспоминать</p>
+                <p className="text-xs text-red-600 mt-1">Сильная тяжесть и боли.</p>
+              </div>
+            </button>
+          </div>
+          <p className="mt-8 text-[10px] text-slate-400 text-center uppercase tracking-widest">Проект выполнил: ученик 10 "А" класса</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 md:p-10 font-sans">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <button onClick={() => {setStep(0); setMyMeal([]);}} className="flex items-center gap-2 text-blue-600 font-bold hover:underline">
+            <RotateCcw size={18} /> Начать заново
+          </button>
+          <div className="px-4 py-2 bg-blue-100 rounded-full text-blue-700 text-xs font-bold flex items-center gap-2">
+            Твой статус: {statusLabel}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Конструктор питания */}
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+              <h2 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                <Milk className="text-blue-500" /> Что ты сегодня ел?
+              </h2>
+              
+              <div className="grid grid-cols-2 gap-2 mb-6">
+                {FOOD_DATABASE.map(food => (
+                  <button 
+                    key={food.name}
+                    onClick={() => addFood(food)}
+                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition-all flex flex-col items-center gap-1"
+                  >
+                    <span className="text-2xl">{food.icon}</span>
+                    <span className="text-[10px] font-bold text-center text-slate-600">{food.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-2 border-t pt-6">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Твоя тарелка:</h3>
+                {myMeal.length === 0 && <p className="text-slate-300 italic text-sm text-center py-4">Здесь пока пусто. Добавь что-нибудь!</p>}
+                {myMeal.map(item => (
+                  <div key={item.id} className="flex justify-between items-center p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                    <span className="font-medium text-slate-700">{item.icon} {item.name}</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs font-mono font-bold text-blue-600">{item.lactose}г</span>
+                      <button onClick={() => removeFood(item.id)} className="text-red-400 hover:text-red-600">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Результаты и Биохимия */}
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                <Beaker size={120} />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-6">Био-анализ нагрузки</h2>
+              
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="p-4 bg-slate-50 rounded-2xl">
+                  <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Всего лактозы</p>
+                  <p className="text-2xl font-black text-blue-600">{stats.totalLactose.toFixed(1)} <span className="text-xs font-normal">г</span></p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl">
+                  <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Не усвоится</p>
+                  <p className="text-2xl font-black text-amber-500">{stats.unabsorbed.toFixed(1)} <span className="text-xs font-normal">г</span></p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold uppercase text-slate-400">
+                  <span>Уровень дискомфорта</span>
+                  <span>{Math.round(stats.stress)}%</span>
+                </div>
+                <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-1000 ${stats.stress > 70 ? 'bg-red-500' : stats.stress > 30 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${stats.stress}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-900 text-slate-50 p-6 rounded-3xl shadow-xl">
+              <div className="flex items-start gap-3 mb-6">
+                <div className="p-2 bg-white/10 rounded-lg">
+                  <Info size={18} className="text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm">Почему мне станет плохо?</h3>
+                  <p className="text-[10px] text-slate-400 leading-snug">Лактоза не расщепляется в тонком кишечнике и попадает в толстый, где бактерии начинают её «есть».</p>
+                </div>
+              </div>
+              
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 mb-4">
+                <p className="text-[9px] text-slate-400 uppercase font-bold mb-4 tracking-tighter">Химическая реакция в толстом кишечнике:</p>
+                <BiochemicalFormulaSVG />
+              </div>
+
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <p className="text-[10px] text-amber-200 leading-tight">
+                  <span className="font-bold">Результат:</span> Выделение газов и органических кислот. Именно это вызывает вздутие и неприятные ощущения.
+                </p>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setShowCard(true)}
+              className="w-full bg-blue-600 text-white p-4 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+            >
+              <FileText size={20} /> Показать Bio-Card
+            </button>
+          </div>
+        </div>
+
+        {/* Modal: Bio-Nutrition Card */}
+        {showCard && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl">
+              <div className="bg-blue-600 p-6 text-white text-center">
+                <h2 className="text-xl font-bold">Personalized Bio-Card</h2>
+                <p className="text-xs opacity-80 uppercase tracking-widest mt-1">Результат школьного проекта</p>
+              </div>
+              <div className="p-8 space-y-6">
+                <div className="flex justify-between border-b pb-4">
+                  <span className="text-slate-500 text-sm">Твой статус:</span>
+                  <span className="font-bold text-slate-800">{statusLabel}</span>
+                </div>
+                <div className="flex justify-between border-b pb-4">
+                  <span className="text-slate-500 text-sm">Всего лактозы:</span>
+                  <span className="font-bold text-slate-800">{stats.totalLactose.toFixed(1)} г</span>
+                </div>
+                <div className="flex justify-between border-b pb-4">
+                  <span className="text-slate-500 text-sm">Риск вздутия:</span>
+                  <span className={`font-bold ${stats.stress > 50 ? 'text-red-500' : 'text-emerald-500'}`}>
+                    {Math.round(stats.stress)}%
+                  </span>
+                </div>
+                
+                <div className="p-4 bg-blue-50 rounded-2xl">
+                  <p className="text-[10px] font-bold text-blue-400 uppercase mb-2">Совет:</p>
+                  <p className="text-xs text-blue-900 leading-relaxed italic">
+                    {stats.stress > 40 
+                      ? "При таком количестве лактозы тебе может быть нехорошо. Попробуй заменить обычное молоко на безлактозное!" 
+                      : "Нагрузка небольшая, твой организм должен справиться!"}
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => setShowCard(false)}
+                  className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all"
+                >
+                  Закрыть
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Заглушка для FileText, если он не импортирован (используем Info как замену)
+const FileText = ({ size }) => <Info size={size} />;
+
+export default App;
